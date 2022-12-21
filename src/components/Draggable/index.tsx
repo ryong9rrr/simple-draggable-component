@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef, useState } from "react";
 
 interface Props {
   children: React.ReactNode;
@@ -8,76 +8,62 @@ interface Props {
   };
 }
 
+const INIT_X = 0;
+const INIT_Y = 0;
+
+const calculateRange = (d: number, target: number, limit: number) => {
+  return d + target > limit ? limit - target : d < 0 ? 0 : d;
+};
+
 export default function Draggable({ children, position }: Props) {
+  const initX = position ? position.x : INIT_X;
+  const initY = position ? position.y : INIT_Y;
+
   const targetRef = useRef<HTMLDivElement>(null);
-
-  const dragging = useRef(false);
-
-  const coords = useRef({
-    startX: position ? position.x : 0,
-    startY: position ? position.y : 0,
-    lastX: position ? position.x : 0,
-    lastY: position ? position.y : 0,
+  const [{ x, y }, setPosition] = useState({
+    x: initX,
+    y: initY,
   });
 
-  useEffect(() => {
-    if (!targetRef.current || !coords.current) {
-      return;
-    }
+  const handleMouseDown = (clickEvent: React.MouseEvent<HTMLElement>) => {
+    const handleMouseMove = (mouseEvent: MouseEvent) => {
+      if (!targetRef.current) {
+        return;
+      }
+      const nextX = x + mouseEvent.screenX - clickEvent.screenX;
+      const nextY = y + mouseEvent.screenY - clickEvent.screenY;
 
-    const targetElement = targetRef.current;
-    const containerElement = targetElement.parentElement;
+      const target = targetRef.current.getBoundingClientRect();
+      const container = (
+        targetRef.current.parentElement as HTMLElement
+      ).getBoundingClientRect();
 
-    if (!containerElement) {
-      throw new Error("target element must have parentElement");
-    }
-
-    const handleMouseDown = (e: MouseEvent) => {
-      dragging.current = true;
-      coords.current.startX = e.clientX;
-      coords.current.startY = e.clientY;
+      setPosition({
+        x: calculateRange(nextX, target.width, container.width),
+        y: calculateRange(nextY, target.height, window.screen.height),
+      });
     };
 
     const handleMouseUp = (e: MouseEvent) => {
-      dragging.current = false;
-      coords.current.lastX = targetElement.offsetLeft;
-      coords.current.lastY = targetElement.offsetTop;
+      document.removeEventListener("mousemove", handleMouseMove);
+      // you can save position
+      console.warn("up");
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!dragging.current) {
-        return;
-      }
-
-      const nextX = e.clientX - coords.current.startX + coords.current.lastX;
-      const nextY = e.clientY - coords.current.startY + coords.current.lastY;
-
-      targetElement.style.top = `${nextY}px`;
-      targetElement.style.left = `${nextX}px`;
-    };
-
-    targetElement.addEventListener("mousedown", handleMouseDown);
-    targetElement.addEventListener("mouseup", handleMouseUp);
-    containerElement.addEventListener("mousemove", handleMouseMove);
-    containerElement.addEventListener("mouseleave", handleMouseUp);
-
-    return () => {
-      targetElement.removeEventListener("mousedown", handleMouseDown);
-      targetElement.removeEventListener("mouseup", handleMouseUp);
-      containerElement.removeEventListener("mousemove", handleMouseMove);
-      containerElement.removeEventListener("mouseleave", handleMouseUp);
-    };
-  }, []);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp, { once: true });
+  };
 
   return (
     <div
       ref={targetRef}
       style={{
         position: "absolute",
-        top: position ? position.x : 0,
-        left: position ? position.y : 0,
+        left: x,
+        top: y,
         cursor: "grab",
       }}
+      onMouseDown={handleMouseDown}
     >
       {children}
     </div>
