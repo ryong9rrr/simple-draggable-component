@@ -1,19 +1,9 @@
 import React, { useRef, useState } from "react";
-
-interface Props {
-  children: React.ReactNode;
-  position?: {
-    x: number;
-    y: number;
-  };
-}
+import { Props } from "./types";
+import { calculateRange } from "./utils";
 
 const INIT_X = 0;
 const INIT_Y = 0;
-
-const calculateRange = (d: number, target: number, limit: number) => {
-  return d + target > limit ? limit - target : d < 0 ? 0 : d;
-};
 
 export default function Draggable({ children, position }: Props) {
   const initX = position ? position.x : INIT_X;
